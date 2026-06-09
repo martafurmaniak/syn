@@ -1,0 +1,39 @@
+COMPANIES HOUSE
+Crown Way, Cardiff CF14 3UZ
+
+CONFIRMATION OF FILING / EXTRACT FROM PUBLIC RECORD
+
+Company Name:    {{ company_name }}
+Company Number:  {{ company_number }}
+Registered Office: {{ company_address }}
+Incorporated:    {{ incorporation_date }}
+SIC Code:        {{ sic_code }} — {{ sic_description }}
+
+LATEST FILED ACCOUNTS
+Filing Date:     {{ filing_date }}
+Accounts Period: Year ended {{ accounts_year_end }}
+Accounts Type:   {{ accounts_type }}
+
+KEY FIGURES (from filed accounts)
+
+  Turnover:                   {{ currency }} {{ turnover }}
+  Operating Profit:           {{ currency }} {{ operating_profit }}
+  Profit after Taxation:      {{ currency }} {{ profit_after_tax }}
+
+DIRECTOR INFORMATION
+{% for d in directors %}  {{ d.name }}  (appointed {{ d.appointed }})
+{% endfor %}
+
+SHAREHOLDER DISTRIBUTIONS
+  The accounts record distributions to shareholders of
+  {{ currency }} {{ distribution_amount }} for the year ended
+  {{ accounts_year_end }}.
+
+  Principal shareholder and director: {{ director_name }}
+
+This information is extracted from the public register maintained by
+Companies House. It may be verified at companieshouse.gov.uk.
+
+Reference: {{ ch_ref }}
+Extracted: {{ extract_date }}
+Document ID: {{ doc_id }}

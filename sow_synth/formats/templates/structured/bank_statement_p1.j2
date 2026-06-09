@@ -1,0 +1,27 @@
+{{ bank_name }}
+STATEMENT OF ACCOUNT
+
+Account Holder:    {{ account_holder }}
+Account Number:    ****{{ account_last4 }}
+Sort Code:         {{ sort_code }}
+Statement Period:  {{ period_start }} to {{ period_end }}
+Branch:            {{ branch_address }}
+
+--------------------------------------------------------------------------------
+Date         Description                                  Debit        Credit
+--------------------------------------------------------------------------------
+{% for tx in transactions %}{{ tx.line }}
+{% endfor %}--------------------------------------------------------------------------------
+Opening Balance:                                                  {{ currency }} {{ opening_balance }}
+Total Credits This Period:                                        {{ currency }} {{ total_credits }}
+Total Debits This Period:                     {{ currency }} {{ total_debits }}
+Closing Balance:                                                  {{ currency }} {{ closing_balance }}
+--------------------------------------------------------------------------------
+
+This statement is provided for information purposes only.
+Please check all entries carefully and contact us immediately
+if you believe any transaction is incorrect.
+
+Sort Code: {{ sort_code }}  |  Account: ****{{ account_last4 }}
+Statement Reference: {{ statement_ref }}
+Page 1{% if total_pages > 1 %} of {{ total_pages }}{% endif %}

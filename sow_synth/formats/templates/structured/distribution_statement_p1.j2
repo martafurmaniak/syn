@@ -1,0 +1,25 @@
+{{ company_name }}
+Registered No. {{ company_number }}
+
+DIVIDEND / DISTRIBUTION CERTIFICATE
+
+Shareholder:      {{ shareholder_name }}
+Shareholding:     {{ share_percentage }}% ({{ shares_held }} ordinary shares)
+Distribution Date:{{ distribution_date }}
+Tax Year:         {{ tax_year_label }}
+
+DISTRIBUTION DETAILS
+----------------------------------------
+Gross Distribution:          {{ currency }} {{ gross_distribution }}
+Dividend Tax Credit ({{ tax_credit_rate }}%): {{ currency }} {{ tax_credit }}
+Net Distribution:            {{ currency }} {{ net_distribution }}
+----------------------------------------
+
+This certificate should be retained. It may be required for your
+Self Assessment tax return. The net amount of {{ currency }} {{ net_distribution }}
+was paid on {{ distribution_date }} to account ****{{ account_last4 }}.
+
+Company Secretary: {{ company_secretary }}
+On behalf of: {{ company_name }}
+
+Document ID: {{ doc_id }}

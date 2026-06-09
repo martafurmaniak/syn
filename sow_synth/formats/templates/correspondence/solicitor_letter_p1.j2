@@ -1,0 +1,60 @@
+{{ solicitor_firm }}
+{{ solicitor_address }}
+DX: {{ dx_ref }}
+
+{{ letter_date }}
+
+{{ recipient_name }}
+
+Our Ref: {{ our_ref }}
+Your Ref: {{ your_ref }}
+
+Dear {{ salutation }},
+
+RE: {{ matter_description }}
+
+We act on behalf of {% if acting_for_estate %}the Estate of the late
+{{ subject_name }}{% else %}{{ subject_name }}{% endif %} in connection
+with the above matter.
+
+{% if letter_type == "inheritance" %}
+We write to confirm that, pursuant to the terms of the Will of
+{{ deceased_name }} dated {{ will_date }}, our client {{ beneficiary_name }}
+is entitled to receive and has received the sum of {{ currency }} {{ confirmed_amount }}
+({{ confirmed_amount_words }}) as a beneficiary of the estate.
+
+The above distribution was effected on {{ distribution_date }} following
+the grant of probate (Ref: {{ probate_ref }}) issued by the Principal
+Registry of the Family Division.
+
+The net estate, after payment of liabilities and costs, was valued at
+{{ currency }} {{ net_estate }}. Our client's entitlement represented
+{{ share_percentage }}% of the distributable estate.
+{% elif letter_type == "gift" %}
+We write to confirm that we have acted in connection with a gift made
+by {{ donor_name }} to {{ recipient_name }} on {{ gift_date }}.
+
+The gift comprised the sum of {{ currency }} {{ confirmed_amount }}
+({{ confirmed_amount_words }}), transferred by electronic payment on
+{{ gift_date }}.
+
+We confirm that the gift was unconditional and made freely with full
+capacity. No consideration was received by the donor.
+{% elif letter_type == "business" %}
+We write to confirm that, acting for {{ company_name }}, we facilitated
+the distribution of profits to shareholders for the period ended
+{{ period_end }}.
+
+Our client {{ director_name }} received distributions totalling
+{{ currency }} {{ confirmed_amount }} ({{ confirmed_amount_words }})
+in respect of their shareholding.
+{% endif %}
+
+Please do not hesitate to contact us should you require any further
+information or documentation.
+
+Yours {% if salutation == "Sir/Madam" %}faithfully{% else %}sincerely{% endif %},
+
+{{ solicitor_firm }}
+
+Enc: {% if enclosures %}{{ enclosures }}{% else %}None{% endif %}

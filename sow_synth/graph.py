@@ -16,6 +16,11 @@ import networkx as nx
 from sow_synth.models import Claim, Document, Event, Profile
 from sow_synth.spec import ScenarioSpec
 
+# Avoid a circular import: docplan imports models but not graph
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from sow_synth.docplan import DocumentPlan
+
 
 # Node-type labels stored as a node attribute so consumers can filter easily
 _NODE_TYPE = "node_type"
@@ -83,15 +88,22 @@ def assemble_graph(
     profile: Profile,
     events: list[Event],
     claims: list[Claim],
-    documents: list[Document] | None = None,
+    document_plans: "list[DocumentPlan] | None" = None,
+    client_history: "Document | None" = None,
 ) -> FactGraph:
     """Build the canonical fact graph and freeze it.
 
-    Documents may be empty at Phase 1 — the graph is still complete and valid
-    for ground-truth purposes (no rendering yet).
+    document_plans may be empty at Phase 1 (no documents yet).  When provided,
+    Document nodes are created with empty pages, and corroborates / derived_from
+    edges are wired in by construction.  Surface realization (Stage 8) later
+    populates the pages in-place; NetworkX freeze does not prevent mutating
+    node attribute objects, only structural graph changes.
+
+    client_history is an already-rendered Document (role='client_history').
+    When provided, it is added as a node with 'states' edges to every claim.
     """
-    if documents is None:
-        documents = []
+    if document_plans is None:
+        document_plans = []
 
     g = nx.MultiDiGraph()
     fg = FactGraph(g=g, spec=spec, profile=profile)
@@ -104,26 +116,34 @@ def assemble_graph(
         fg._add_node(e.event_id, "event", e)
         fg._events[e.event_id] = e
 
-    # -- Claim nodes + edges --
-    event_by_id = {e.event_id: e for e in events}
+    # -- Claim nodes + covers edges --
     for claim in claims:
         fg._add_node(claim.claim_id, "claim", claim)
         fg._claims[claim.claim_id] = claim
-
-        # covers: claim → each covered event
         for eid in claim.covered_event_ids:
             fg._add_edge(claim.claim_id, eid, "covers")
 
-    # -- Document nodes + edges --
-    for doc in documents:
+    # -- states edges: client_history → claim (preferred) or profile → claim (fallback) --
+    if client_history is not None:
+        fg._add_node(client_history.doc_id, "document", client_history)
+        fg._documents[client_history.doc_id] = client_history
+        for claim in claims:
+            fg._add_edge(client_history.doc_id, claim.claim_id, "states")
+    else:
+        for claim in claims:
+            fg._add_edge(profile.client_id, claim.claim_id, "states")
+
+    # -- Corroboration document nodes + corroborates + derived_from edges --
+    for plan in document_plans:
+        doc = plan.to_document()           # empty pages — rendered later
         fg._add_node(doc.doc_id, "document", doc)
         fg._documents[doc.doc_id] = doc
+        for eid in plan.source_event_ids:
+            fg._add_edge(doc.doc_id, eid, "derived_from")
+        for cid in plan.corroborates_claim_ids:
+            fg._add_edge(doc.doc_id, cid, "corroborates")
 
-    # -- states: profile → claim (all claims are asserted by the client history) --
-    for claim in claims:
-        fg._add_edge(profile.client_id, claim.claim_id, "states")
-
-    # -- Freeze --
+    # -- Freeze graph structure --
     nx.freeze(g)
     fg.frozen = True
 

@@ -63,16 +63,28 @@ SOW_TYPE_FOR_EVENT: dict[EventType, SowType | None] = {
 
 
 class DocType(str, Enum):
+    # structured forms
     payslip = "payslip"
-    employment_contract = "employment_contract"
-    employer_letter = "employer_letter"
-    will = "will"
-    probate_grant = "probate_grant"
-    gift_letter = "gift_letter"
     bank_statement = "bank_statement"
-    share_purchase_agreement = "share_purchase_agreement"
+    bank_transfer_confirmation = "bank_transfer_confirmation"
     company_accounts = "company_accounts"
     distribution_statement = "distribution_statement"
+    probate_grant = "probate_grant"
+    # legal documents
+    employment_contract = "employment_contract"
+    will_extract = "will_extract"
+    gift_deed = "gift_deed"
+    share_purchase_agreement = "share_purchase_agreement"
+    # correspondence
+    employer_letter = "employer_letter"
+    solicitor_letter = "solicitor_letter"
+    email_thread = "email_thread"
+    gift_letter = "gift_letter"
+    # press / external
+    bloomberg_article = "bloomberg_article"
+    ft_article = "ft_article"
+    companies_house_filing = "companies_house_filing"
+    # internal
     client_history = "client_history"
 
 

@@ -22,11 +22,10 @@ results don't transfer. Drives the stage-10 emitter.
 OpenAI stack), unless the production pipeline uses Textract or Google Document AI —
 confirm which engine the downstream agents actually consume.
 
-## 3. Currency
-**Why it matters:** multi-currency adds realism but requires per-event FX dates in the
-ledger fold and FX handling in documents.
-**Recommended default:** **single currency** for v1 (set in `ScenarioSpec.currency_mode`);
-add multi-currency in a later phase once the single-currency ledger is proven.
+## 3. Currency ✓ RESOLVED (single currency)
+Single currency is implemented. `ScenarioSpec.currency` defaults to `"GBP"`. All
+events, claims, and documents use the same currency. Multi-currency remains a future
+option but is not needed for Phase 4.
 
 ## 4. Extraction scoring
 **Why it matters:** determines how the extraction sub-task is graded and therefore what
@@ -36,21 +35,18 @@ location; amount-tolerance matching.
 **Recommended default:** record both `asserted_text` and its character span so any of
 these metrics can be computed later; decide the headline metric with the eval harness.
 
-## 5. Scale & LLM-call budget per sample
-**Why it matters:** drives how much is templated (cheap, deterministic) vs. generated
-(expensive, needs verify-and-repair), and whether to recommend batching.
-**Recommended default:** maximize templating; reserve LLM calls for natural-language
-flavor and the narrative client-history document. Set a per-sample call budget in config
-and track it in batch generation.
+## 5. Scale & LLM-call budget per sample ✓ RESOLVED FOR CURRENT PHASE (zero calls)
+Phase 3 is fully template-driven — no LLM calls. All flavor text (names, addresses,
+article prose, letter bodies) is generated deterministically via hash-seeded generators
+in `formats/flavor.py`. When the LLM is enabled in a future phase, it should fill only
+natural-language flavor fields and be constrained to schema-valid output.
 
 ## 6. Time dimension (confirmed)
 Events are dated and the ledger is temporal; net worth is a point-in-time snapshot at an
 "as of" date. This is assumed throughout and is needed for temporal-impossibility
 perturbations. Flagged here only so it stays an explicit, revisitable assumption.
 
-## 7. Profile source
-**Why it matters:** the original draft loads a CSV of (name, DOB, occupation).
-**Open:** keep CSV-driven profiles, fully synthesize them, or both? Enrichment
-(nationality, domicile, industry, age) is needed either way.
-**Recommended default:** support both — CSV when provided, synthesis otherwise — behind
-a single `profile.py` interface.
+## 7. Profile source ✓ RESOLVED (synthesis only for now)
+`profile.py` fully synthesizes profiles from `ScenarioSpec` constraints and the rng
+(name, DOB, occupation, industry, domicile, age, career start). CSV-driven profiles
+can be added behind the same `resolve_profile(spec, rng)` interface when needed.

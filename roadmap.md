@@ -3,59 +3,99 @@
 Validate the highest-risk part (trustworthy ground truth) before investing in rendering.
 Each phase has concrete deliverables and acceptance criteria.
 
-## Phase 0 — Scaffolding
-**Deliverables:** repo structure (see `CLAUDE.md`), `models.py` with Pydantic v2 schemas
-for `Profile`, `Event`, `Claim`, `Document`, edges, `ScenarioSpec`; CI running tests.
-**Acceptance:** schemas import cleanly; a `ScenarioSpec` can be constructed and round-trips
-through JSON.
+## Phase 0 — Scaffolding ✓ COMPLETE
+**Deliverables:** repo structure, `models.py` with Pydantic v2 schemas for `Profile`,
+`Event`, `Claim`, `Document`, edges, `ScenarioSpec`; CI running tests.
+**Acceptance:** schemas import cleanly; a `ScenarioSpec` can be constructed and
+round-trips through JSON.
 
-## Phase 1 — Fact core (highest priority)
-**Deliverables:** `events.py` (typed dated event generation), `ledger.py` (deterministic
-fold → net worth), `claims.py` (projections), `graph.py` (assemble + freeze), plus
-Hypothesis property tests.
+## Phase 1 — Fact core ✓ COMPLETE
+**Deliverables:** `events.py`, `ledger.py`, `claims.py`, `graph.py`, Hypothesis
+property tests.
 **Acceptance (invariants hold across thousands of seeds):**
-- `net_worth = Σ inflows − Σ outflows` for every generated timeline.
-- `Claim.amount == Σ amounts of covered events` for every claim.
-- Causal ordering never violated (no distribution before founding, etc.).
-- `(spec, seed)` reproduces an identical fact graph bit-for-bit.
-- A target net-worth band is reliably hit (via nudging or rejection sampling).
+- `net_worth = Σ inflows − Σ outflows` for every generated timeline. ✓
+- `Claim.amount == Σ amounts of covered events` for every claim. ✓
+- Causal ordering never violated. ✓
+- `(spec, seed)` reproduces an identical fact graph bit-for-bit. ✓
+- A target net-worth band is reliably hit. ✓
 
-**Outcome:** trustworthy ground truth with *no documents yet*. If this is solid,
-everything downstream is "just" rendering.
-
-## Phase 2 — One document type end-to-end
-**Deliverables:** `docplan.py` for a single doc type (e.g. payslip), one Jinja2 template,
-`render/realize.py` (constrained LLM surface realization), `verify.py`
-(extract-and-assert + repair), `ocr.py` (emit target schema + programmatic noise).
+## Phase 2 — One document type end-to-end ✓ COMPLETE
+**Deliverables:** `docplan.py`, payslip Jinja2 templates (4 pages), `render/realize.py`,
+`verify.py`, `ocr.py`, `export.py`, CLI (`generate_sample.py`).
 **Acceptance:**
-- Every figure in the rendered payslip traces to an `Event` (verify passes, or repairs).
-- The clean copy is retained; noise is applied only to a copy.
-- The OCR JSON matches the confirmed target engine schema.
-- Round-trip: generate → render → verify → noise produces a valid bundle for one claim.
+- Every figure in the rendered payslip traces to an event (verify passes). ✓
+- Clean copy retained; noise applied only to a copy. ✓
+- HTML export allows visual inspection per document. ✓
 
-## Phase 3 — Full document matrix + perturbations
-**Deliverables:** `docplan.py` requirements matrix for all SoW types and doc types;
-templates for each; `perturb.py` implementing the taxonomy in
-`docs/ground-truth-and-eval.md`.
+## Phase 3 — Full document matrix + format diversity ✓ COMPLETE
+**Deliverables:** Two-dimension format system (EvidenceType × FormatType); weighted
+format registry; 16 format types across 4 template categories (structured, legal,
+correspondence, press); one `DocumentPlan` per `Claim`; precision-aware `verify_hints`.
 **Acceptance:**
-- Each SoW type produces its expected corroboration document set.
-- Each perturbation produces the correct ground-truth label and the intended document
-  artifact (e.g. a contradictory doc actually contradicts; a dropped doc is absent).
-- Clean (no-perturbation) samples are fully corroborated by construction.
+- Each SoW type draws from a weighted pool of realistic document formats. ✓
+- Different seeds produce different format types for the same claim type. ✓
+- `verify_hints` drive precision-aware checking (exact/rounded/approximate/narrative). ✓
+- 22 tests pass across 50–200 Hypothesis examples per property test. ✓
 
-## Phase 4 — Packaging + eval harness + scale
-**Deliverables:** `package.py` (bundle format), `eval/` harness, a spec sampler to
-generate a *distribution* of specs, batch generation with cost tracking.
+**Format types implemented:**
+
+| Category | Format types |
+|----------|-------------|
+| Structured | payslip, bank_statement, bank_transfer_confirmation, company_accounts, distribution_statement, probate_grant |
+| Legal | will_extract, gift_deed, share_purchase_agreement, employment_contract |
+| Correspondence | employer_letter, solicitor_letter, email_thread, gift_letter |
+| Press | bloomberg_article, companies_house_filing |
+
+## Phase 4 — Client history document (first LLM call)
+**Deliverables:** `render/client_history.py` — generates the multi-page narrative
+document that embeds all claims, net worth, and outflows in natural prose. This is the
+**only document type that requires an LLM** — the narrative structure and tone variation
+across samples cannot be achieved convincingly with templates alone.
+
+The LLM constraint: all figures, dates, names, and claim linkages are **injected from
+the fact layer** into a structured prompt; the model fills natural-language prose only.
+Output is constrained to a validated schema (structured outputs / `instructor`) so
+numbers are never generated by the model.
+
 **Acceptance:**
-- Bundles match the format in `docs/ground-truth-and-eval.md`.
-- The harness scores a baseline agent and reports per-sub-task and per-perturbation
-  metrics.
+- Every figure that appears in the rendered client history traces to a fact-layer value
+  (verify passes, or repairs).
+- The document reads as a coherent relationship manager write-up — not obviously
+  templated.
+- Reproducibility holds: same `(spec, seed)` produces the same LLM prompt, and the
+  output is stable enough for eval (either cache responses or accept prose variation as
+  non-ground-truth content).
+- Per-sample LLM call count is tracked and within budget.
+
+## Phase 5 — Perturbations
+**Deliverables:** `perturb.py` — labeled graph mutations applied before rendering to
+manufacture negative and hard cases.
+
+| Perturbation | Mutation | Ground-truth label |
+|---|---|---|
+| Missing corroboration | drop document + `corroborates` edge | flag |
+| Contradiction | mutate document amount; relabel edge | flag / contradictory |
+| Temporal impossibility | shift document or event date | flag |
+| Red herring | add decoy document with no real `corroborates` | do not link |
+| Partial coverage | document evidences only part of claimed amount | flag (Option A) |
+
+**Acceptance:**
+- Each perturbation produces the correct ground-truth annotation.
+- Clean (no-perturbation) samples remain fully corroborated by construction.
+- `DifficultyProfile` in `ScenarioSpec` controls which perturbations appear and how many.
+
+## Phase 6 — Packaging + eval harness + batch generation
+**Deliverables:** `package.py` (ground-truth bundle format), `eval/` harness, spec
+sampler for batch generation with cost tracking.
+**Acceptance:**
+- Bundles match the format in `ground-truth-and-eval.md`.
+- The harness scores a baseline agent and reports per-sub-task and per-perturbation metrics.
 - A full eval set (clean + graded-hard + adversarial) can be generated reproducibly
   within the LLM-call budget.
 
 ## Cross-cutting (every phase)
-- Hypothesis property tests guard the invariants; never let them regress.
+- Hypothesis property tests guard invariants; never let them regress.
 - Schema versioning: bump a version when a generator change alters output, so old eval
   sets aren't silently invalidated.
-- Prefer templating over generation to control cost and drift; only use the LLM for
-  natural-language flavor.
+- Prefer templating over LLM generation to control cost and drift; only use the LLM for
+  natural-language flavor and the narrative client-history document.

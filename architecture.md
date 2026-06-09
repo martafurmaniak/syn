@@ -92,12 +92,24 @@ A claim is a typed, labeled aggregation over a subset of events
 amounts are exact and each claim carries provenance to the event IDs it `covers`.
 
 ### Stage 5 — Document planning
-A deterministic requirements matrix maps each event/claim to the document types that
-would evidence it in reality (employment → payslips + contract + employer letter;
-inheritance → will + grant of probate + bank transfer; business → share-purchase
-agreement + accounts + distribution statements; gift → gift letter + transfer receipt).
-Some sampling adds variety. **The claim↔document edges are created here, by
-construction — this is the ground-truth mapping.**
+One `DocumentPlan` is created per `Claim`. The document format is drawn from a
+**weighted format registry** keyed on `SowType`, so different seeds produce different
+document types for the same claim type — for example, an employment claim may be
+corroborated by a payslip, a bank statement, an employer letter, an email thread, or
+a bloomberg article extract, in proportion to realistic frequencies.
+
+Format selection is two-dimensional: **EvidenceType** (what fact — employment,
+inheritance, gift, business) × **FormatType** (how it looks — structured statement,
+legal document, correspondence, press extract). Sixteen format types are registered
+across four categories.
+
+**The `corroborates` edges are created here, by construction** — before the graph is
+frozen, before any rendering — so the ground-truth mapping is established at planning
+time and is never reconstructed from rendered content.
+
+Each `DocumentPlan` also carries `verify_hints` — a list of `{key, expected, precision}`
+dicts that `verify.py` uses to check rendered content against the fact layer with
+precision-aware tolerance (`exact` / `rounded` / `approximate` / `narrative`).
 
 ### Stage 6 — Graph assembly
 Assemble profile, events, claims, and documents into a typed graph (NetworkX): nodes per
@@ -111,17 +123,28 @@ date (temporal impossibility), inject a decoy document (red herring), leave a cl
 partially covered. Each is logged as a ground-truth annotation. See
 `docs/ground-truth-and-eval.md` for the taxonomy.
 
-### Stage 8 — Surface realization (LLM, constrained)
-The only stage the LLM runs, and it never decides a number. Two paths: structured docs
-(payslip, will, contract) are mostly Jinja2 templates with values injected
-programmatically, the LLM filling only natural-language flavor fields; narrative-heavy
-docs (client history) let the LLM write prose but every figure is passed in. Use
-structured outputs / constrained decoding so the model returns a validated schema.
+### Stage 8 — Surface realization (template-driven; LLM stubbed)
+Currently fully template-driven: Jinja2 templates per format type, with all numbers
+injected from `DocumentPlan.template_context` (which comes from the fact layer). The
+LLM is not called in the current implementation — all natural-language flavor text is
+generated deterministically from `formats/flavor.py` using hash-seeded generators.
+
+When the LLM is enabled, it will fill only natural-language fields (headlines, bylines,
+prose paragraphs) and must return a validated schema; it never decides a number, date,
+or entity. Use structured outputs / constrained decoding so the model output is
+schema-valid.
+
+The dispatcher in `formats/realize.py` routes each plan to the correct context builder
+and template family based on `format_type`. Page count varies by document complexity
+(payslips: 1–4 pages depending on gross pay; other types: 1–2 pages).
 
 ### Stage 9 — Verify-and-repair
-Extract every number, date, and entity from each rendered document and assert membership
-in the graph (modulo intended perturbations). On mismatch, regenerate the offending field
-or overwrite programmatically, with bounded retries. Keep the clean rendered copy.
+Each `DocumentPlan` carries `verify_hints` — a list of `{key, expected, precision}`
+records — that `verify.py` evaluates against the rendered document's `key_values`.
+Precision modes: `exact` (must match to the penny), `rounded` (within ±1 unit),
+`approximate` (within 10%), `narrative` (amount is in prose — skip numeric check).
+On mismatch, the offending `key_value` is overwritten in-place. The clean rendered
+copy is always retained.
 
 ### Stage 10 — OCR layout + noise
 Convert clean documents into the target OCR engine's actual schema (pages, lines, words,

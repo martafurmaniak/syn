@@ -122,51 +122,65 @@ Invariants that must always hold (enforce with Hypothesis):
 - Every `Claim.amount` equals the sum of the amounts of the events it `covers`.
 - Reproducibility: `(spec, seed)` fully determines the sample, bit-for-bit.
 
-## Proposed repository structure
+## Repository structure
 
 ```
 .
 ├── CLAUDE.md
 ├── README.md
-├── docs/
-│   ├── architecture.md
-│   ├── data-model.md
-│   ├── ground-truth-and-eval.md
-│   ├── roadmap.md
-│   └── open-questions.md
+├── architecture.md
+├── data-model.md
+├── ground-truth-and-eval.md
+├── roadmap.md
+├── open-questions.md
+├── generate_sample.py     # CLI: run the full pipeline for one sample
 ├── sow_synth/
-│   ├── spec.py            # ScenarioSpec + sampling of specs
+│   ├── models.py          # Pydantic v2 schemas for all nodes/edges/docs
+│   ├── spec.py            # ScenarioSpec + DifficultyProfile
 │   ├── profile.py         # Stage 1: profile resolution/enrichment
 │   ├── events.py          # Stage 2: typed dated event generation
 │   ├── ledger.py          # Stage 3: deterministic fold → net worth
 │   ├── claims.py          # Stage 4: claim projections over events
-│   ├── docplan.py         # Stage 5: document requirements matrix
+│   ├── docplan.py         # Stage 5: one DocumentPlan per Claim, format from registry
 │   ├── graph.py           # Stage 6: assemble + freeze canonical graph
-│   ├── perturb.py         # Stage 7: labeled difficulty injection
-│   ├── render/            # Stage 8: templates + LLM surface realization
-│   │   ├── templates/     # Jinja2 templates per document type
+│   ├── perturb.py         # Stage 7: labeled difficulty injection (TODO)
+│   ├── formats/           # Stage 8: format diversity system
+│   │   ├── __init__.py    #   FormatSpec, PrecisionMode, FORMATS registry
+│   │   ├── registry.py    #   weighted format selection per SowType
+│   │   ├── flavor.py      #   deterministic name/address/reference generators
+│   │   ├── realize.py     #   central dispatcher + all 16 context builders
+│   │   └── templates/     #   Jinja2 templates (4 categories × 16 types)
+│   │       ├── structured/
+│   │       ├── legal/
+│   │       ├── correspondence/
+│   │       └── press/
+│   ├── render/            # thin wrapper — re-exports from formats/realize.py
 │   │   └── realize.py
-│   ├── verify.py          # Stage 9: extract figures, assert, repair
-│   ├── ocr.py             # Stage 10: OCR schema emit + programmatic noise
-│   ├── package.py         # Stage 11: bundle sample (input + clean + GT)
-│   └── models.py          # Pydantic v2 schemas for all nodes/edges/docs
-├── tests/                 # Hypothesis property tests + unit tests
-└── eval/                  # Harness that consumes ground-truth bundles
+│   ├── verify.py          # Stage 9: precision-aware verify-and-repair via verify_hints
+│   ├── ocr.py             # Stage 10: programmatic OCR noise
+│   ├── export.py          # HTML + JSON export for visual inspection
+│   └── package.py         # Stage 11: ground-truth bundle (TODO)
+├── tests/
+│   ├── test_invariants.py # Hypothesis property tests: ledger, claims, graph
+│   └── test_documents.py  # Document planning, rendering, verify, OCR
+└── eval/                  # Eval harness (TODO)
 ```
 
-## Current status & what to build first
+## Current status
 
-**Status:** design complete, no code yet. This package captures all decisions from the
-design conversation.
+**Phases 0–3 complete.** The pipeline runs end-to-end from spec to exported HTML.
+See `roadmap.md` for the phase definitions and remaining work.
 
-**Build order** (full version in `docs/roadmap.md`):
-1. **Fact core first.** Implement `models.py`, `events.py`, `ledger.py`, `graph.py`
-   with Hypothesis tests proving the invariants. This yields trustworthy ground truth
-   with *no documents* — the highest-risk part validated before any rendering.
-2. **One document type end-to-end** through `docplan` → `render` → `verify` → `ocr`,
-   to validate the render-verify-noise loop on a single payslip-style doc.
-3. **Scale out** to the full document matrix and the perturbation taxonomy.
-4. **Packaging + eval harness.**
+**What's built:**
+- Fact core (`models.py`, `events.py`, `ledger.py`, `claims.py`, `graph.py`) — 22 tests
+- Document planning with format diversity (`docplan.py`, `formats/`)
+- Surface realization via Jinja2 templates — 16 format types across 4 categories
+- Verify-and-repair (`verify.py`) — precision-aware; uses `verify_hints` from docplan
+- OCR noise (`ocr.py`) and HTML export (`export.py`)
+- CLI (`generate_sample.py`)
+
+**Next:** Phase 4 — `perturb.py`, `package.py`, eval harness, spec sampler for batch
+generation.
 
 ## Decision-blocking open questions
 

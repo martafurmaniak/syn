@@ -1,0 +1,28 @@
+P60  END OF YEAR CERTIFICATE — TAX CALCULATION DETAIL
+{{ employer_name }}  |  Employee: {{ employee_name }}  |  Year: {{ tax_year_label }}
+
+INCOME TAX CALCULATION
+----------------------------------------------------------------------
+Tax Code:                         {{ tax_code }}
+Personal Allowance:    {{ currency }} {{ personal_allowance }}
+Gross Taxable Income:  {{ currency }} {{ gross_pay }}
+Less Personal Allow.:  {{ currency }} {{ personal_allowance }}
+                       ------------------
+Taxable Income:        {{ currency }} {{ taxable_income }}
+
+TAX BANDS APPLIED
+{% for band in tax_bands %}  {{ band.label }}   {{ currency }} {{ band.amount }}   @ {{ band.rate }}
+{% endfor %}
+Total Income Tax:      {{ currency }} {{ income_tax }}
+Effective Rate:                  {{ effective_rate }}
+
+NATIONAL INSURANCE DETAIL
+----------------------------------------------------------------------
+NI Category:                      {{ ni_category }}
+Lower Earnings Limit:  {{ currency }} {{ lel }}
+Upper Earnings Limit:  {{ currency }} {{ uel }}
+NI-able Earnings:      {{ currency }} {{ niable }}
+Employee NI ({{ ni_ee_rate }}):   {{ currency }} {{ ni_contributions }}
+Employer NI ({{ ni_er_rate }}):   {{ currency }} {{ ni_er }}
+
+Page 3 of {{ total_pages }}

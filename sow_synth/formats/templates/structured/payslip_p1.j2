@@ -1,0 +1,34 @@
+P60  END OF YEAR CERTIFICATE
+=====================================
+
+{{ employer_name }}
+{{ employer_address }}
+PAYE Reference:   {{ employer_paye_ref }}
+
+Employee Name:    {{ employee_name }}
+Employee ID:      {{ employee_id }}
+National Ins No:  {{ ni_number }}
+Tax Code:         {{ tax_code }}
+
+Tax Year:         {{ tax_year_start }} to {{ tax_year_end }}
+                  (Year {{ tax_year_label }})
+
+-------------------------------------
+EARNINGS SUMMARY
+-------------------------------------
+Total Gross Pay:       {{ currency }} {{ gross_pay }}
+Income Tax Deducted:   {{ currency }} {{ income_tax }}
+NI Contributions (EE): {{ currency }} {{ ni_contributions }}
+NI Contributions (ER): {{ currency }} {{ ni_er }}
+-------------------------------------
+Net Pay:               {{ currency }} {{ net_pay }}
+-------------------------------------
+
+I certify that the details shown above are
+correct to the best of my knowledge.
+
+Authorised Signatory: ________________
+Date Signed: {{ signed_date }}
+
+Document ID: {{ doc_id }}
+Page 1 of {{ total_pages }}

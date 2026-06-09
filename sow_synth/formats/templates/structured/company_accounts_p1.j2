@@ -1,0 +1,42 @@
+{{ company_name }}
+REGISTERED IN ENGLAND AND WALES  No. {{ company_number }}
+
+ABBREVIATED ACCOUNTS
+For the year ended {{ year_end_date }}
+
+These accounts have been prepared in accordance with the provisions
+applicable to companies subject to the small companies regime.
+
+PROFIT AND LOSS ACCOUNT
+For the year ended {{ year_end_date }}
+----------------------------------------
+                                    {{ currency }}
+Turnover                        {{ turnover }}
+Cost of Sales                  ({{ cost_of_sales }})
+                               ----------
+Gross Profit                    {{ gross_profit }}
+Administrative Expenses        ({{ admin_expenses }})
+                               ----------
+Operating Profit                {{ operating_profit }}
+Interest Receivable             {{ interest_receivable }}
+                               ----------
+Profit on Ordinary Activities
+  before Taxation               {{ profit_before_tax }}
+Tax on Profit on Ordinary
+  Activities                   ({{ corporation_tax }})
+                               ----------
+Profit after Taxation           {{ profit_after_tax }}
+Retained Profit Brought Forward {{ retained_bf }}
+                               ----------
+Retained Profit Carried Forward {{ retained_cf }}
+----------------------------------------
+
+DISTRIBUTIONS TO SHAREHOLDERS
+During the year, dividends and distributions were made as follows:
+  {{ director_name }} (Director / Shareholder):  {{ currency }} {{ distribution_amount }}
+  Total Distributions:                           {{ currency }} {{ distribution_amount }}
+
+Director: {{ director_name }}
+Date Approved: {{ approval_date }}
+
+Page 1 of {{ total_pages }}

@@ -66,12 +66,49 @@ Generated artifacts. Two roles: the single **client history** document, and the
 ```python
 class Document(BaseModel):
     doc_id: str
-    doc_type: DocType          # payslip, employment_contract, will, probate_grant,
-                               # share_purchase_agreement, company_accounts,
-                               # distribution_statement, gift_letter, bank_statement, ...
+    doc_type: DocType
     role: Literal["client_history", "corroboration"]
     pages: list[OcrPage]       # clean rendered content (see OCR schema below)
 ```
+
+`DocType` covers 16 implemented format types across four categories:
+
+| Category | DocType values |
+|----------|---------------|
+| Structured | `payslip`, `bank_statement`, `bank_transfer_confirmation`, `company_accounts`, `distribution_statement`, `probate_grant` |
+| Legal | `will_extract`, `gift_deed`, `share_purchase_agreement`, `employment_contract` |
+| Correspondence | `employer_letter`, `solicitor_letter`, `email_thread`, `gift_letter` |
+| Press | `bloomberg_article`, `companies_house_filing` |
+
+### DocumentPlan (Stage 5 blueprint)
+One `DocumentPlan` is created per `Claim` in Stage 5 (before graph freeze). It carries
+the template context (all fact-layer values), the `corroborates_claim_ids` mapping, and
+`verify_hints` for Stage 9.
+
+```python
+@dataclass
+class DocumentPlan:
+    doc_id: str
+    doc_type: DocType
+    role: Literal["corroboration"]
+    source_event_ids: list[str]       # → derived_from edges
+    corroborates_claim_ids: list[str] # → corroborates edges
+    template_context: dict            # fact-layer values for Jinja2 templates
+    verify_hints: list[dict]          # [{key, expected, precision}] for verify.py
+```
+
+### Format system
+Document format selection is two-dimensional: **SowType** (what fact is being
+corroborated) × **FormatType** (how the document looks). A weighted registry
+(`formats/registry.py`) maps each `SowType` to a probability distribution over
+compatible format types, so different seeds produce different document types for the
+same claim — adding realistic variety without breaking the ground-truth invariants.
+
+`PrecisionMode` controls how `verify.py` compares rendered amounts to expected values:
+- `exact` — must match to the penny (structured docs)
+- `rounded` — within ±1 currency unit (rounded statement figures)
+- `approximate` — within 10% (narrative summaries quoting rounded figures)
+- `narrative` — amount is embedded in prose; skip numeric check (press articles)
 
 ## Edge types
 
