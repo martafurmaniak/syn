@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sow_synth"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "networkx>=3.0",
+    "numpy>=1.26",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "hypothesis>=6.100",
+    "pytest>=8.0",
+    "pytest-hypothesis",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sow_synth*"]
