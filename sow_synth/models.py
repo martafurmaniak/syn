@@ -62,6 +62,17 @@ SOW_TYPE_FOR_EVENT: dict[EventType, SowType | None] = {
 }
 
 
+class EvidentialRole(str, Enum):
+    proves_entity_ownership   = "proves_entity_ownership"   # CoI, Companies House
+    proves_transaction        = "proves_transaction"        # bank transfer, statement
+    proves_employment_tenure  = "proves_employment_tenure"  # contract, employer letter
+    proves_income_amount      = "proves_income_amount"      # payslip, accounts
+    proves_inheritance_right  = "proves_inheritance_right"  # will, probate grant
+    proves_gift_transfer      = "proves_gift_transfer"      # gift deed, gift letter
+    proves_business_ownership = "proves_business_ownership" # CoI, SPA, CH filing
+    corroborates_narrative    = "corroborates_narrative"    # solicitor/email/press
+
+
 class DocType(str, Enum):
     # structured forms
     payslip = "payslip"
@@ -167,36 +178,15 @@ class Claim(BaseModel):
 # OCR document schemas (clean copy; noise applied to a separate copy in stage 10)
 # ---------------------------------------------------------------------------
 
-class OcrWord(BaseModel):
-    text: str
-    confidence: float = 1.0
-    polygon: list[float] = []     # flattened x,y pairs
-
-
-class OcrLine(BaseModel):
-    text: str
-    confidence: float = 1.0
-    polygon: list[float] = []
-    words: list[OcrWord] = []
-
-
-class KeyValue(BaseModel):
-    key: str
-    value: str
-    confidence: float = 1.0
-
-
-class OcrTable(BaseModel):
-    rows: list[list[str]] = []
-
-
 class OcrPage(BaseModel):
+    """One page as returned by Azure Document Intelligence Layout model.
+
+    page_text is the HTML-formatted text extracted from the page — exactly
+    what the layout model returns.  No polygons, confidence scores, or
+    key-value blocks: those are not part of the layout model output.
+    """
     page_number: int
-    width: float = 595.0    # A4 in points
-    height: float = 842.0
-    lines: list[OcrLine] = []
-    key_values: list[KeyValue] = []
-    tables: list[OcrTable] = []
+    page_text: str = ""
 
 
 class Document(BaseModel):

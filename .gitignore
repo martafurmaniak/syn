@@ -25,8 +25,8 @@ env/
 htmlcov/
 
 # Generated outputs (sample runs)
+outputs/
 output*/
-output_sample/
 *.json
 !.env.sample
 

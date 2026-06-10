@@ -7,12 +7,14 @@ Usage in generate_sample.py:
         profile = resolve_profile(spec, rng)
     # LlmClient records its own calls directly via tel.record_llm_call(...)
     tel.print_report()
+    tel.save_report(run_dir / "telemetry.txt")
 """
 from __future__ import annotations
 
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
@@ -62,53 +64,54 @@ class Telemetry:
 
     # ------------------------------------------------------------------
 
-    def print_report(self) -> None:
+    def _build_report(self) -> str:
         total_tokens = sum(s.total_tokens for s in self._steps)
         total_time   = time.perf_counter() - self._run_start
-
-        W = 78
-        col = dict(name=36, time=8, prompt=8, compl=8, total=8, share=7)
-
-        def _row(name, time_s, prompt, compl, total, share, *, header=False, sep=False):
-            if sep:
-                print("-" * W)
-                return
-            ts  = f"{time_s:.3f}s" if isinstance(time_s, float) else time_s
-            pt  = str(prompt) if prompt else "-"
-            ct  = str(compl)  if compl  else "-"
-            tt  = str(total)  if total  else "-"
-            sh  = f"{share:.1f}%" if isinstance(share, float) else share
-            print(f"  {name:<{col['name']}} {ts:>{col['time']}}  "
-                  f"{pt:>{col['prompt']}}  {ct:>{col['compl']}}  "
-                  f"{tt:>{col['total']}}  {sh:>{col['share']}}")
-
-        SEP1 = "=" * W
-        SEP2 = "-" * W
-        print()
-        print(SEP1)
-        print("  TELEMETRY REPORT")
-        print(SEP1)
-        print(f"  {'Step':<{col['name']}} {'Time':>{col['time']}}  "
-              f"{'Prompt':>{col['prompt']}}  {'Compl.':>{col['compl']}}  "
-              f"{'Total':>{col['total']}}  {'Share':>{col['share']}}")
-        print(SEP2)
-
-        for s in self._steps:
-            share = (s.total_tokens / total_tokens * 100) if total_tokens and s.is_llm else ""
-            _row(
-                s.name, s.duration_s,
-                s.prompt_tokens if s.is_llm else 0,
-                s.completion_tokens if s.is_llm else 0,
-                s.total_tokens if s.is_llm else 0,
-                share,
-            )
-
-        print(SEP2)
-
         total_prompt = sum(s.prompt_tokens for s in self._steps)
         total_compl  = sum(s.completion_tokens for s in self._steps)
-        print(f"  {'TOTAL':<{col['name']}} {total_time:>{col['time']}.3f}s  "
-              f"{total_prompt:>{col['prompt']}}  {total_compl:>{col['compl']}}  "
-              f"{total_tokens:>{col['total']}}  {'100.0%':>{col['share']}}")
-        print(SEP1)
-        print()
+
+        W   = 78
+        col = dict(name=36, time=8, prompt=8, compl=8, total=8, share=7)
+        SEP1 = "=" * W
+        SEP2 = "-" * W
+
+        lines = []
+        lines.append("")
+        lines.append(SEP1)
+        lines.append("  TELEMETRY REPORT")
+        lines.append(SEP1)
+        lines.append(
+            f"  {'Step':<{col['name']}} {'Time':>{col['time']}}  "
+            f"{'Prompt':>{col['prompt']}}  {'Compl.':>{col['compl']}}  "
+            f"{'Total':>{col['total']}}  {'Share':>{col['share']}}"
+        )
+        lines.append(SEP2)
+
+        for s in self._steps:
+            ts = f"{s.duration_s:.3f}s"
+            pt = str(s.prompt_tokens)     if s.is_llm else "-"
+            ct = str(s.completion_tokens) if s.is_llm else "-"
+            tt = str(s.total_tokens)      if s.is_llm else "-"
+            sh = (f"{s.total_tokens / total_tokens * 100:.1f}%"
+                  if total_tokens and s.is_llm else "")
+            lines.append(
+                f"  {s.name:<{col['name']}} {ts:>{col['time']}}  "
+                f"{pt:>{col['prompt']}}  {ct:>{col['compl']}}  "
+                f"{tt:>{col['total']}}  {sh:>{col['share']}}"
+            )
+
+        lines.append(SEP2)
+        lines.append(
+            f"  {'TOTAL':<{col['name']}} {total_time:>{col['time']}.3f}s  "
+            f"{total_prompt:>{col['prompt']}}  {total_compl:>{col['compl']}}  "
+            f"{total_tokens:>{col['total']}}  {'100.0%':>{col['share']}}"
+        )
+        lines.append(SEP1)
+        lines.append("")
+        return "\n".join(lines)
+
+    def print_report(self) -> None:
+        print(self._build_report())
+
+    def save_report(self, path: Path) -> None:
+        path.write_text(self._build_report(), encoding="utf-8")

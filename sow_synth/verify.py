@@ -1,135 +1,67 @@
-"""Stage 9 — Verify-and-repair.
+"""Stage 9 — Verify mandatory facts.
 
-After surface realization, check every rendered document against its
-verify_hints (set in Stage 5, docplan).  Precision-aware comparison:
-  exact       — must match to the penny
-  rounded     — within £1 / $1
-  approximate — within 10 %
-  narrative   — skip numeric check (amount embedded in prose)
+After rendering, check that every value in DocumentSpec.mandatory_facts
+appears in the document's concatenated page_text.  This ensures the renderer
+(LLM or code fallback) embedded all required figures verbatim.
 
-On mismatch, overwrite the offending key_value in-place (repair).
+No repair: if a value is missing the error is recorded and the sample is
+flagged.  Silent repair of LLM output is not safe — it would corrupt ground
+truth without a trace.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
 
-from sow_synth.docplan import DocumentPlan
 from sow_synth.graph import FactGraph
-from sow_synth.models import Document
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from sow_synth.docplan import CorroborationBundle
+    from sow_synth.models import Document
 
 
 @dataclass
 class VerifyError:
     doc_id: str
     field: str
-    found: str
     expected: str
-    repaired: bool = False
 
     def __str__(self) -> str:
-        status = "REPAIRED" if self.repaired else "ERROR"
-        return f"[{status}] {self.doc_id} / {self.field}: found={self.found!r} expected={self.expected!r}"
+        return f"[MISSING] {self.doc_id} / {self.field}: {self.expected!r} not in page_text"
 
 
-def _parse_amount(value: str) -> Decimal | None:
-    parts = value.strip().split()
-    raw = parts[-1] if parts else value
-    try:
-        return Decimal(raw.replace(",", ""))
-    except InvalidOperation:
-        return None
-
-
-def _amounts_match(found: Decimal, expected: Decimal, precision: str) -> bool:
-    if precision == "exact":
-        return found == expected
-    if precision == "rounded":
-        return abs(found - expected) <= Decimal("1.00")
-    if precision == "approximate":
-        if expected == 0:
-            return found == 0
-        return abs(found - expected) / expected <= Decimal("0.10")
-    # narrative — skip
-    return True
-
-
-def _repair_key_value(doc: Document, key: str, correct_value: str) -> None:
-    for page in doc.pages:
-        for kv in page.key_values:
-            if kv.key == key:
-                old = kv.value
-                kv.value = correct_value
-                for line in page.lines:
-                    if key in line.text and old in line.text:
-                        line.text = line.text.replace(old, correct_value)
-                return
+def _full_text(doc: "Document") -> str:
+    raw = " ".join(p.page_text for p in doc.pages)
+    return re.sub(r"<[^>]+>", " ", raw)
 
 
 def verify_document(
-    doc: Document,
-    plan: DocumentPlan,
-    repair: bool = True,
+    doc: "Document",
+    mandatory_facts: dict[str, str],
 ) -> list[VerifyError]:
-    """Check doc's key_values against plan.verify_hints."""
+    text = _full_text(doc)
     errors: list[VerifyError] = []
-
-    # Build a flat key_value map from all pages (first occurrence wins)
-    kv_map: dict[str, str] = {}
-    for page in doc.pages:
-        for kv in page.key_values:
-            kv_map.setdefault(kv.key, kv.value)
-
-    for hint in plan.verify_hints:
-        key = hint["key"]
-        expected_str = hint["expected"]
-        precision = hint.get("precision", "exact")
-
-        if precision == "narrative":
-            continue
-
-        found_str = kv_map.get(key)
-        if found_str is None:
-            continue  # field not present in this doc format; skip
-
-        found = _parse_amount(found_str)
-        expected = _parse_amount(expected_str)
-        if found is None or expected is None:
-            errors.append(VerifyError(doc.doc_id, key, found_str or "", expected_str))
-            continue
-
-        if not _amounts_match(found, expected, precision):
-            err = VerifyError(
-                doc_id=doc.doc_id,
-                field=key,
-                found=str(found),
-                expected=expected_str,
-                repaired=False,
-            )
-            if repair:
-                _repair_key_value(doc, key, expected_str)
-                err.repaired = True
-            errors.append(err)
-
+    for key, value in mandatory_facts.items():
+        if value and value not in text:
+            errors.append(VerifyError(doc_id=doc.doc_id, field=key, expected=value))
     return errors
 
 
 def verify_all(
     fg: FactGraph,
-    plans: list[DocumentPlan] | None = None,
-    repair: bool = True,
+    bundles: "list[CorroborationBundle] | None" = None,
+    **_kwargs,  # absorb legacy keyword args (plans=, repair=) silently
 ) -> list[VerifyError]:
-    """Verify all rendered documents.  Requires plans list for hint lookup."""
-    plan_map: dict[str, DocumentPlan] = {}
-    if plans:
-        plan_map = {p.doc_id: p for p in plans}
+    """Verify every rendered corroboration document against its mandatory_facts."""
+    if not bundles:
+        return []
 
     all_errors: list[VerifyError] = []
-    for doc in fg.documents:
-        if not doc.pages:
-            continue
-        plan = plan_map.get(doc.doc_id)
-        if plan is None:
-            continue
-        all_errors.extend(verify_document(doc, plan, repair=repair))
+    for bundle in bundles:
+        for doc_spec in bundle.doc_specs:
+            doc = fg._documents.get(doc_spec.doc_id)
+            if doc is None or not doc.pages:
+                continue
+            all_errors.extend(verify_document(doc, doc_spec.mandatory_facts))
     return all_errors
